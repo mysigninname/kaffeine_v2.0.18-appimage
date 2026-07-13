@@ -43,8 +43,12 @@ jobs:
             CMAKE_VER=3.25.3
             curl -fsSLO "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VER}/cmake-${CMAKE_VER}-linux-x86_64.tar.gz"
             tar -xzf "cmake-${CMAKE_VER}-linux-x86_64.tar.gz"
+
             rm -f /usr/local/bin/cmake /usr/local/bin/ctest /usr/local/bin/cpack /usr/local/bin/ccmake || true
-            cp -a "cmake-${CMAKE_VER}-linux-x86_64/"*/bin/* /usr/local/bin/
+
+            # archive layout: cmake-${CMAKE_VER}-linux-x86_64/bin/*
+            cp -a "cmake-${CMAKE_VER}-linux-x86_64/bin/"* /usr/local/bin/
+
             /usr/local/bin/cmake --version
           '
 
