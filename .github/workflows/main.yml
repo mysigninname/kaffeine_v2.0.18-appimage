@@ -14,7 +14,7 @@ jobs:
       image: ghcr.io/pkgforge-dev/archlinux:latest
 
     steps:
-      - name: Install build tools
+      - name: Install build tools + KF5 group
         run: |
           /bin/sh -euxc '
             pacman-key --init || true
@@ -28,18 +28,10 @@ jobs:
               python3 \
               vlc \
               pipewire wireplumber \
-              plasma-desktop \
-              kcoreaddons5 ki18n5 kconfigwidgets5 kdbusaddons5 kio5 kxmlgui5 \
-              kwindowsystem kcmutils kiconthemes kwallet \
-              ksolid \
-              kio-extras \
-              sonnet threadweaver \
-              kframeworkintegration \
-              breeze-icons oxygen-icons \
-              attica \
-              baloo \
-              bluez-qt \
-              solid
+              plasma-desktop
+
+            # Install KDE Frameworks 5 + apps deps via Arch group/meta packages (avoids guessing exact kf5-* package names)
+            pacman -S --noconfirm --needed kf5 kf5-aids || true
           '
 
       - name: Install CMake (3.25.3) with full install layout (includes CMAKE_ROOT)
