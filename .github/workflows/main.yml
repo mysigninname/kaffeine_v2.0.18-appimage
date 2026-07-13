@@ -14,7 +14,18 @@ jobs:
       image: ghcr.io/pkgforge-dev/archlinux:latest
 
     steps:
-      - name: Checkout source + AppImage helper repo
+      - name: Install minimal tools (git/cmake/ninja)
+        run: |
+          /bin/sh -euxc '
+            pacman-key --init || true
+            pacman-key --populate archlinux || true
+            pacman -Syu --noconfirm --needed
+
+            pacman -S --noconfirm --needed \
+              git cmake ninja base-devel
+          '
+
+      - name: Checkout kaffeine-AppImage helper repo
         uses: actions/checkout@v5
         with:
           repository: pkgforge-dev/kaffeine-AppImage
@@ -27,15 +38,10 @@ jobs:
             git clone --depth 1 --branch v2.0.18 https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
           '
 
-      - name: Prepare pacman keys and install dependencies
+      - name: Install KDE/Qt build dependencies
         run: |
           /bin/sh -euxc '
-            pacman-key --init || true
-            pacman-key --populate archlinux || true
-            pacman -Syu --noconfirm --needed
-
             pacman -S --noconfirm --needed \
-              base-devel git cmake ninja \
               extra-cmake-modules kcoreaddons \
               qt6-base qt6-multimedia qt6-svg \
               attica baloo bluez-qt calendarcore contacts frameworkintegration guiaddons iconthemes kcmutils kio kio-plugins solid sonnet threadweaver xmlgui wallet \
@@ -45,26 +51,33 @@ jobs:
               vlc
           '
 
-      - name: Build sharun AppImage for kaffeine v2.0.18
+      - name: Build and install kaffeine into a staging root
         run: |
           /bin/sh -euxc '
             cd /src/kaffeine
+
             cmake -S . -B build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_TESTING=OFF \
               -DCMAKE_INSTALL_PREFIX=/usr
+
             ninja -C build
             DESTDIR=/tmp/kaffeine-root ninja -C build install
+          '
 
+      - name: Build AppImage with sharun
+        run: |
+          /bin/sh -euxc '
             cd /appimage-helper
 
-            # Ensure sharun scripts use the already-built /tmp/kaffeine-root contents.
-            # Many pkgforge helper repos expect the built root under /tmp/<name>-root or similar;
-            # if your helper repo uses a different path, adjust this directory name to match.
+            # Reset any previous staging paths that the helper expects (if present)
             rm -rf /tmp/appdir /tmp/AppDir || true
+
+            # Provide the staged /usr tree to the AppImage helper.
+            # If the helper expects a different staging location/name, adjust as needed.
             cp -a /tmp/kaffeine-root/usr /usr || true
 
-            /bin/sh ./get-dependencies.sh || true
+            /bin/sh ./get-dependencies.sh
             /bin/sh ./make-appimage.sh
           '
 
