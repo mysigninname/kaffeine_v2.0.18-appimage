@@ -14,13 +14,38 @@ jobs:
       image: ghcr.io/pkgforge-dev/archlinux:latest
 
     steps:
-      - name: Install minimal tools (git/cmake/ninja)
+      - name: Install build tools
         run: |
           /bin/sh -euxc '
             pacman-key --init || true
             pacman-key --populate archlinux || true
             pacman -Syu --noconfirm --needed
-            pacman -S --noconfirm --needed git cmake ninja base-devel
+
+            pacman -S --noconfirm --needed \
+              git ninja base-devel gcc g++ \
+              qt5-base qt5-multimedia qt5-svg \
+              extra-cmake-modules kcoreaddons \
+              attica baloo bluez-qt \
+              solid threadweaver sonnet \
+              kio kio-extras \
+              kxmlgui kwallet \
+              kconfigwidgets \
+              breeze-icons oxygen-icons \
+              python3 \
+              vlc \
+              pipewire wireplumber
+          '
+
+      - name: Install CMake (older to allow CMP0002 OLD)
+        run: |
+          /bin/sh -euxc '
+            cd /tmp
+            CMAKE_VER=3.25.3
+            curl -fsSLO "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VER}/cmake-${CMAKE_VER}-linux-x86_64.tar.gz"
+            tar -xzf "cmake-${CMAKE_VER}-linux-x86_64.tar.gz"
+            rm -f /usr/local/bin/cmake /usr/local/bin/ctest /usr/local/bin/cpack /usr/local/bin/ccmake || true
+            cp -a "cmake-${CMAKE_VER}-linux-x86_64/"*/bin/* /usr/local/bin/
+            /usr/local/bin/cmake --version
           '
 
       - name: Checkout kaffeine-AppImage helper repo
@@ -37,61 +62,28 @@ jobs:
             git clone --depth 1 --single-branch --branch v2.0.18 https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
           '
 
-      - name: Install KDE/Qt build dependencies (auto-resolve package names)
+      - name: Install KDE/Qt5/KF5 runtime deps (broad)
         run: |
           /bin/sh -euxc '
-            resolve_and_install () {
-              name="$1"
-              pkg=""
-              if pacman -Si "$name" >/dev/null 2>&1; then
-                pkg="$name"
-              else
-                # Try common variants (KF5/KF6/renames) by searching repo for close matches
-                for cand in "${name}5" "${name}6" "extra/${name}5" "extra/${name}6"; do
-                  if pacman -Si "$cand" >/dev/null 2>&1; then
-                    pkg="$cand"
-                    break
-                  fi
-                done
-              fi
-
-              if [ -n "$pkg" ]; then
-                pacman -S --noconfirm --needed "$pkg"
-              else
-                echo "SKIP (not found): $name"
-              fi
-            }
-
             pacman -S --noconfirm --needed \
-              extra-cmake-modules kcoreaddons \
-              qt5-base qt5-multimedia qt5-svg \
-              attica baloo bluez-qt \
-              kcmutils kio kio-extras \
-              solid sonnet threadweaver \
-              kxmlgui kwallet \
-              breeze-icons oxygen-icons \
-              python3 vlc pipewire wireplumber
-
-            # Resolve the rest by installing any repo package that matches the known base names.
-            # (This avoids hardcoding names like kcalendarcore5 which may be absent in this container.)
-            for base in \
-              kcalendarcore kcontacts kguiaddons kiconthemes kdbusaddons ksolid \
-              kwindowsystem kxmlgui kwallet kconfigwidgets; do
-              resolve_and_install "$base"
-            done
-          '
+              plasma-desktop \
+              kf5-frameworkintegration \
+              kf5-kio kf5-solid kf5-xmlgui kf5-kwallet kf5-wallet \
+              kf5-kconfigwidgets kf5-kwindowsystem \
+              kf5-kiconthemes kf5-kguiaddons \
+              kf5-kcmutils kf5-sonnet kf5-threadweaver \
+              kf5-kdbusaddons
+          ' || true
 
       - name: Build and install kaffeine into a staging root
         run: |
           /bin/sh -euxc '
             cd /src/kaffeine
-            cmake -S . -B build -G Ninja \
+
+            /usr/local/bin/cmake -S . -B build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_TESTING=OFF \
-              -DCMAKE_INSTALL_PREFIX=/usr \
-              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-              -DCMAKE_POLICY_DEFAULT_CMP0002=NEW \
-              -Wno-dev
+              -DCMAKE_INSTALL_PREFIX=/usr
 
             ninja -C build
             DESTDIR=/tmp/kaffeine-root ninja -C build install
