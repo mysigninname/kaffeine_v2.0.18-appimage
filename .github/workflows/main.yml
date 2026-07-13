@@ -38,7 +38,7 @@ jobs:
               libxss
           '
 
-      - name: Install CMake (3.25.3) with full install layout (includes CMAKE_ROOT)
+      - name: Install CMake (3.25.3)
         run: |
           /bin/sh -euxc '
             cd /tmp
@@ -71,6 +71,7 @@ jobs:
         run: |
           /bin/sh -euxc '
             rm -rf /src/kaffeine
+            mkdir -p /src
             git clone --no-tags https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
             cd /src/kaffeine
             git fetch --tags --force
@@ -94,7 +95,7 @@ jobs:
       - name: Build AppImage with sharun
         run: |
           /bin/sh -euxc '
-            cd /appimage-helper
+            cd appimage-helper
 
             rm -rf /tmp/appdir /tmp/AppDir /tmp/usr || true
             mkdir -p /tmp/usr
