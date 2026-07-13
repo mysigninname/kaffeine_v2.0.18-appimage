@@ -22,7 +22,7 @@ jobs:
             pacman -Syu --noconfirm --needed
 
             pacman -S --noconfirm --needed \
-              git ninja base-devel gcc g++ \
+              git ninja base-devel gcc \
               qt5-base qt5-multimedia qt5-svg \
               extra-cmake-modules kcoreaddons \
               attica baloo bluez-qt \
