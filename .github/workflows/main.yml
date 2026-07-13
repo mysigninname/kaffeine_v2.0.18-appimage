@@ -1,9 +1,9 @@
-name: Kaffeine AppImage (sharun) - v2.0.18
+name: Anylinux-AppImage (sharun) - kaffeine v2.0.18
 
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: "0 7 1/21 * *"
+    - cron: "0 7 1/21 * *" # default: rebuild every 21 days
 
 concurrency:
   group: build-${{ github.ref }}
@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   build:
-    name: x86_64
+    name: "x86_64"
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/pkgforge-dev/archlinux:latest
@@ -24,16 +24,13 @@ jobs:
 
       - name: Install Dependencies
         env:
-          KAFFEINE_VERSION: "v2.0.18"
-        run: |
-          /bin/sh ./get-dependencies.sh
+          APPIMAGE_VERSION: "v2.0.18"
+        run: /bin/sh ./get-dependencies.sh
 
       - name: Make AppImage
         env:
-          KAFFEINE_VERSION: "v2.0.18"
-          # scripts should output into ./dist and use sharun/quick-sharun
-        run: |
-          /bin/sh ./make-appimage.sh
+          APPIMAGE_VERSION: "v2.0.18"
+        run: /bin/sh ./make-appimage.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -44,8 +41,9 @@ jobs:
   release:
     if: ${{ github.ref_name == 'main' }}
     needs: [build]
-    runs-on: ubuntu-latest
     permissions: write-all
+    runs-on: ubuntu-latest
+
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
