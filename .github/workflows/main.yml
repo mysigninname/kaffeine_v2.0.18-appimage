@@ -39,20 +39,23 @@ jobs:
             git clone --depth 1 --single-branch --branch v2.0.18 https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
           '
 
-      - name: Install KF5 + KDE dependencies
+      - name: Install KDE/Qt5 + KF5 dependencies (Arch package names use *5)
         run: |
           /bin/sh -euxc '
             pacman -S --noconfirm --needed \
-              extra-cmake-modules kcoreaddons \
+              extra-cmake-modules kcoreaddons5 \
               qt5-base qt5-multimedia qt5-svg \
-              attica baloo bluez-qt \
-              kcalendarcore kcontacts \
-              kguiaddons kiconthemes \
-              kcmutils kio kio-extras \
-              kwindowsystem \
-              solid sonnet threadweaver \
-              kxmlgui kwallet \
+              attica baloo \
+              bluez-qt \
+              kcalendarcore5 kcontacts5 \
+              kcmutils5 \
+              kdbusaddons5 kio5 kioextras5 kwindowsystem5 \
+              ksolid5 \
+              kguiaddons5 kiconthemes5 \
+              sonnet5 threadweaver5 \
+              kxmlgui5 kwallet5 \
               breeze-icons oxygen-icons \
+              kconfigwidgets5 \
               python3 \
               vlc \
               pipewire wireplumber
@@ -67,7 +70,9 @@ jobs:
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_TESTING=OFF \
               -DCMAKE_INSTALL_PREFIX=/usr \
-              -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+              -DCMAKE_POLICY_DEFAULT_CMP0002=NEW \
+              -Wno-dev
 
             ninja -C build
             DESTDIR=/tmp/kaffeine-root ninja -C build install
