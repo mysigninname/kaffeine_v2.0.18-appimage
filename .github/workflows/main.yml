@@ -52,7 +52,6 @@ jobs:
               kwindowsystem \
               solid sonnet threadweaver \
               kxmlgui kwallet \
-              kf5-kconfigwidgets \
               breeze-icons oxygen-icons \
               python3 \
               vlc \
