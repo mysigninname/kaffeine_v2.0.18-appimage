@@ -24,13 +24,26 @@ jobs:
             pacman -S --noconfirm --needed \
               git ninja base-devel gcc \
               qt5-base qt5-multimedia qt5-svg \
-              extra-cmake-modules kcoreaddons \
-              attica baloo bluez-qt \
-              solid threadweaver sonnet \
-              kio kio-extras \
-              kxmlgui kwallet \
-              kconfigwidgets \
-              breeze-icons oxygen-icons \
+              extra-cmake-modules \
+              kcoreaddons5 \
+              ki18n5 \
+              kconfigwidgets5 \
+              kdbusaddons5 \
+              kio5 kio-extras5 \
+              kxmlgui5 \
+              ksolid5 \
+              kwindowsystem5 \
+              kwindowsystem5 \
+              kwidgetsaddons5 \
+              kauth5 \
+              kdbusaddons5 \
+              threadweaver sonnet \
+              kcoreaddons5 \
+              plasma-desktop \
+              kf5-frameworkintegration \
+              kf5-sonnet kf5-threadweaver \
+              kf5-kio kf5-kio-extras \
+              kxmlgui kconfigwidgets kio \
               python3 \
               vlc \
               pipewire wireplumber
@@ -65,25 +78,15 @@ jobs:
           ref: main
           path: appimage-helper
 
-      - name: Checkout kaffeine v2.0.18
+      - name: Checkout kaffeine v2.0.18 (non-shallow)
         run: |
           /bin/sh -euxc '
             rm -rf /src/kaffeine
-            git clone --depth 1 --single-branch --branch v2.0.18 https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
+            git clone --no-tags https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
+            cd /src/kaffeine
+            git checkout -B v2.0.18 v2.0.18
+            git log -1 --oneline
           '
-
-      - name: Install KDE/Qt5/KF5 runtime deps (broad)
-        run: |
-          /bin/sh -euxc '
-            pacman -S --noconfirm --needed \
-              plasma-desktop \
-              kf5-frameworkintegration \
-              kf5-kio kf5-solid kf5-xmlgui kf5-kwallet kf5-wallet \
-              kf5-kconfigwidgets kf5-kwindowsystem \
-              kf5-kiconthemes kf5-kguiaddons \
-              kf5-kcmutils kf5-sonnet kf5-threadweaver \
-              kf5-kdbusaddons
-          ' || true
 
       - name: Build and install kaffeine into a staging root
         run: |
