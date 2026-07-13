@@ -1,0 +1,1 @@
+# kaffeine_v2.0.18-appimage
