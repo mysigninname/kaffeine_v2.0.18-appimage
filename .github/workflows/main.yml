@@ -47,8 +47,10 @@ jobs:
               attica baloo bluez-qt \
               kcalendarcore kcontacts \
               kguiaddons kiconthemes \
-              kcmutils kio kio-plugins \
-              ksolid sonnet threadweaver \
+              kcmutils \
+              kio kio-extras kdbusaddons \
+              solid \
+              sonnet threadweaver \
               kxmlgui kwallet \
               breeze-icons oxygen-icons \
               python3 \
