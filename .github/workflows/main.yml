@@ -34,7 +34,8 @@ jobs:
               sonnet threadweaver \
               breeze-icons oxygen-icons \
               attica baloo bluez-qt \
-              solid
+              solid \
+              libxss
           '
 
       - name: Install CMake (3.25.3) with full install layout (includes CMAKE_ROOT)
