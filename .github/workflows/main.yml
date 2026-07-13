@@ -20,9 +20,7 @@ jobs:
             pacman-key --init || true
             pacman-key --populate archlinux || true
             pacman -Syu --noconfirm --needed
-
-            pacman -S --noconfirm --needed \
-              git cmake ninja base-devel
+            pacman -S --noconfirm --needed git cmake ninja base-devel
           '
 
       - name: Checkout kaffeine-AppImage helper repo
@@ -39,33 +37,54 @@ jobs:
             git clone --depth 1 --single-branch --branch v2.0.18 https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
           '
 
-      - name: Install KDE/Qt5 + KF5 dependencies (Arch package names use *5)
+      - name: Install KDE/Qt build dependencies (auto-resolve package names)
         run: |
           /bin/sh -euxc '
+            resolve_and_install () {
+              name="$1"
+              pkg=""
+              if pacman -Si "$name" >/dev/null 2>&1; then
+                pkg="$name"
+              else
+                # Try common variants (KF5/KF6/renames) by searching repo for close matches
+                for cand in "${name}5" "${name}6" "extra/${name}5" "extra/${name}6"; do
+                  if pacman -Si "$cand" >/dev/null 2>&1; then
+                    pkg="$cand"
+                    break
+                  fi
+                done
+              fi
+
+              if [ -n "$pkg" ]; then
+                pacman -S --noconfirm --needed "$pkg"
+              else
+                echo "SKIP (not found): $name"
+              fi
+            }
+
             pacman -S --noconfirm --needed \
-              extra-cmake-modules kcoreaddons5 \
+              extra-cmake-modules kcoreaddons \
               qt5-base qt5-multimedia qt5-svg \
-              attica baloo \
-              bluez-qt \
-              kcalendarcore5 kcontacts5 \
-              kcmutils5 \
-              kdbusaddons5 kio5 kioextras5 kwindowsystem5 \
-              ksolid5 \
-              kguiaddons5 kiconthemes5 \
-              sonnet5 threadweaver5 \
-              kxmlgui5 kwallet5 \
+              attica baloo bluez-qt \
+              kcmutils kio kio-extras \
+              solid sonnet threadweaver \
+              kxmlgui kwallet \
               breeze-icons oxygen-icons \
-              kconfigwidgets5 \
-              python3 \
-              vlc \
-              pipewire wireplumber
+              python3 vlc pipewire wireplumber
+
+            # Resolve the rest by installing any repo package that matches the known base names.
+            # (This avoids hardcoding names like kcalendarcore5 which may be absent in this container.)
+            for base in \
+              kcalendarcore kcontacts kguiaddons kiconthemes kdbusaddons ksolid \
+              kwindowsystem kxmlgui kwallet kconfigwidgets; do
+              resolve_and_install "$base"
+            done
           '
 
       - name: Build and install kaffeine into a staging root
         run: |
           /bin/sh -euxc '
             cd /src/kaffeine
-
             cmake -S . -B build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_TESTING=OFF \
