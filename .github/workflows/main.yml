@@ -44,7 +44,12 @@ jobs:
             pacman -S --noconfirm --needed \
               extra-cmake-modules kcoreaddons \
               qt6-base qt6-multimedia qt6-svg \
-              attica baloo bluez-qt calendarcore contacts frameworkintegration guiaddons iconthemes kcmutils kio kio-plugins solid sonnet threadweaver xmlgui wallet \
+              attica baloo bluez-qt \
+              kcalendarcore kcontacts \
+              kguiaddons kiconthemes \
+              kcmutils kio kio-plugins \
+              ksolid sonnet threadweaver \
+              kxmlgui kwallet \
               breeze-icons oxygen-icons \
               python3 \
               pipewire wireplumber \
@@ -70,11 +75,8 @@ jobs:
           /bin/sh -euxc '
             cd /appimage-helper
 
-            # Reset any previous staging paths that the helper expects (if present)
             rm -rf /tmp/appdir /tmp/AppDir || true
 
-            # Provide the staged /usr tree to the AppImage helper.
-            # If the helper expects a different staging location/name, adjust as needed.
             cp -a /tmp/kaffeine-root/usr /usr || true
 
             /bin/sh ./get-dependencies.sh
