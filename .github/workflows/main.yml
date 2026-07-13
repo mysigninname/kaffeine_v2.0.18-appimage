@@ -58,7 +58,7 @@ jobs:
               vlc
           '
 
-      - name: Build and install kaffeine into a staging root
+      - name: Build and install kaffeine into a staging root (work around old CMakeLists)
         run: |
           /bin/sh -euxc '
             cd /src/kaffeine
@@ -66,7 +66,8 @@ jobs:
             cmake -S . -B build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_TESTING=OFF \
-              -DCMAKE_INSTALL_PREFIX=/usr
+              -DCMAKE_INSTALL_PREFIX=/usr \
+              -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
             ninja -C build
             DESTDIR=/tmp/kaffeine-root ninja -C build install
