@@ -25,28 +25,21 @@ jobs:
               git ninja base-devel gcc \
               qt5-base qt5-multimedia qt5-svg \
               extra-cmake-modules \
-              kcoreaddons5 \
-              ki18n5 \
-              kconfigwidgets5 \
-              kdbusaddons5 \
-              kio5 kio-extras5 \
-              kxmlgui5 \
-              ksolid5 \
-              kwindowsystem5 \
-              kwindowsystem5 \
-              kwidgetsaddons5 \
-              kauth5 \
-              kdbusaddons5 \
-              threadweaver sonnet \
-              kcoreaddons5 \
-              plasma-desktop \
-              kf5-frameworkintegration \
-              kf5-sonnet kf5-threadweaver \
-              kf5-kio kf5-kio-extras \
-              kxmlgui kconfigwidgets kio \
+              kcoreaddons ki18n kconfigwidgets kdbusaddons kio kio-extras kxmlgui ksolid \
+              kwindowsystem kcmutils kiconthemes kwallet \
+              attica baloo bluez-qt \
+              solid threadweaver sonnet \
+              kio kio-extras kxmlgui \
+              kconfigwidgets kf5* \
               python3 \
               vlc \
-              pipewire wireplumber
+              pipewire wireplumber \
+              plasma-desktop \
+              kf5-frameworkintegration \
+              kf5-sonnet \
+              kf5-threadweaver \
+              kf5-kio \
+              kf5-kio-extras
           '
 
       - name: Install CMake (3.25.3) with full install layout (includes CMAKE_ROOT)
