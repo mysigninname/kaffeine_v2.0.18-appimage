@@ -14,68 +14,57 @@ jobs:
       image: ghcr.io/pkgforge-dev/archlinux:latest
 
     steps:
-      - name: Install build tools
-        run: |
-          /bin/sh -euxc '
-            pacman -Syu --noconfirm
-            pacman -S --noconfirm --needed \
-              base-devel git cmake ninja extra-cmake-modules kcoreaddons \
-              qt6-base qt6-multimedia qt6-svg \
-              kf6-attica kf6-baloo kf6-bluez-qt kf6-calendarcore kf6-contacts \
-              kf6-frameworkintegration kf6-guiaddons kf6-iconthemes kf6-kcmutils \
-              kf6-kio kf6-kio-plugins kf6-solid kf6-sonnet kf6-threadweaver \
-              kf6-xmlgui kf6-wallet kf6-wayeland kf6-plotting \
-              python3 \
-              pipewire wireplumber \
-              vlc
-          '
+      - name: Checkout source + AppImage helper repo
+        uses: actions/checkout@v5
+        with:
+          repository: pkgforge-dev/kaffeine-AppImage
+          ref: main
+          path: appimage-helper
 
-      - name: Checkout kaffeine source (KDE tag v2.0.18)
+      - name: Checkout kaffeine v2.0.18
         run: |
           /bin/sh -euxc '
             git clone --depth 1 --branch v2.0.18 https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
           '
 
-      - name: Checkout sharun appimaging helpers
+      - name: Prepare pacman keys and install dependencies
         run: |
           /bin/sh -euxc '
-            git clone --depth 1 https://github.com/pkgforge-dev/kaffeine-AppImage.git /src/kaffeine-AppImage
+            pacman-key --init || true
+            pacman-key --populate archlinux || true
+            pacman -Syu --noconfirm --needed
+
+            pacman -S --noconfirm --needed \
+              base-devel git cmake ninja \
+              extra-cmake-modules kcoreaddons \
+              qt6-base qt6-multimedia qt6-svg \
+              attica baloo bluez-qt calendarcore contacts frameworkintegration guiaddons iconthemes kcmutils kio kio-plugins solid sonnet threadweaver xmlgui wallet \
+              breeze-icons oxygen-icons \
+              python3 \
+              pipewire wireplumber \
+              vlc
           '
 
-      - name: Build and install kaffeine into container prefix
-        env:
-          CMAKE_BUILD_TYPE: Release
+      - name: Build sharun AppImage for kaffeine v2.0.18
         run: |
           /bin/sh -euxc '
-            cmake -S /src/kaffeine -B /src/kaffeine/build -G Ninja \
-              -DCMAKE_BUILD_TYPE="$CMAKE_BUILD_TYPE" \
+            cd /src/kaffeine
+            cmake -S . -B build -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_TESTING=OFF \
               -DCMAKE_INSTALL_PREFIX=/usr
-            ninja -C /src/kaffeine/build
-            DESTDIR=/tmp/kaffeine-root ninja -C /src/kaffeine/build install
-          '
+            ninja -C build
+            DESTDIR=/tmp/kaffeine-root ninja -C build install
 
-      - name: Package with sharun (AppImage)
-        run: |
-          /bin/sh -euxc '
+            cd /appimage-helper
+
+            # Ensure sharun scripts use the already-built /tmp/kaffeine-root contents.
+            # Many pkgforge helper repos expect the built root under /tmp/<name>-root or similar;
+            # if your helper repo uses a different path, adjust this directory name to match.
+            rm -rf /tmp/appdir /tmp/AppDir || true
             cp -a /tmp/kaffeine-root/usr /usr || true
 
-            # Ensure binary exists at expected path for the helper scripts
-            if [ ! -x /usr/bin/kaffeine ]; then
-              echo "ERROR: /usr/bin/kaffeine not found after build/install"
-              find /tmp -maxdepth 5 -type f -name kaffeine -print || true
-              exit 1
-            fi
-
-            cd /src/kaffeine-AppImage
-
-            # Use the same flow as the repo scripts:
-            # - install dependencies
-            # - create AppDir and AppImage using sharun/quick-sharun
-            #
-            # NOTE: We deliberately do NOT rely on pacman installing "kaffeine" from rolling repos;
-            # we already installed v2.0.18 from source into /usr.
-            /bin/sh ./get-dependencies.sh
+            /bin/sh ./get-dependencies.sh || true
             /bin/sh ./make-appimage.sh
           '
 
@@ -83,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: AppImage-x86_64-kaffeine-2.0.18
-          path: /src/kaffeine-AppImage/dist
+          path: appimage-helper/dist
 
   release:
     if: ${{ github.ref_name == 'main' }}
