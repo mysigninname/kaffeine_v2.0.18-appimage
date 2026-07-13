@@ -1,0 +1,57 @@
+name: Kaffeine AppImage (sharun) - v2.0.18
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 7 1/21 * *"
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: x86_64
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/pkgforge-dev/archlinux:latest
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Preparing Container
+        uses: pkgforge-dev/anylinux-setup-action@0964f2258d6c93d1391359978dde081fd8b3c6af # v2
+
+      - name: Install Dependencies
+        env:
+          KAFFEINE_VERSION: "v2.0.18"
+        run: |
+          /bin/sh ./get-dependencies.sh
+
+      - name: Make AppImage
+        env:
+          KAFFEINE_VERSION: "v2.0.18"
+          # scripts should output into ./dist and use sharun/quick-sharun
+        run: |
+          /bin/sh ./make-appimage.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: AppImage-x86_64
+          path: dist
+
+  release:
+    if: ${{ github.ref_name == 'main' }}
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions: write-all
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          pattern: AppImage-*
+          merge-multiple: true
+
+      - name: Release AppImage
+        uses: pkgforge-dev/make-stable-appimage-release@4ed3d48ccb065352b6e6c0db6d39885b201c54a0 # v1.1
