@@ -27,7 +27,7 @@ jobs:
               extra-cmake-modules \
               python3 \
               vlc \
-              pipewire wireplumber \
+              pipewire-pulse pipewire-jack \
               plasma-desktop \
               kcoreaddons5 ki18n5 kconfigwidgets5 kdbusaddons5 kio5 kxmlgui5 kwindowsystem kcmutils kiconthemes kwallet \
               kio-extras \
