@@ -29,8 +29,7 @@ jobs:
               vlc \
               pipewire wireplumber \
               plasma-desktop \
-              kcoreaddons5 ki18n5 kconfigwidgets5 kdbusaddons5 kio5 kxmlgui5 \
-              kwindowsystem kcmutils kiconthemes kwallet \
+              kcoreaddons5 ki18n5 kconfigwidgets5 kdbusaddons5 kio5 kxmlgui5 kwindowsystem kcmutils kiconthemes kwallet \
               ksolid \
               kio-extras \
               sonnet threadweaver \
@@ -75,8 +74,7 @@ jobs:
             git clone --no-tags https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
             cd /src/kaffeine
             git fetch --tags --force
-            git tag -l | sed -n "1,200p"
-            git checkout -B v2.0.18 "v2.0.18" || git checkout -B v2.0.18 "2.0.18"
+            git checkout -B v2.0.18 v2.0.18 || git checkout -B v2.0.18 2.0.18
           '
 
       - name: Build and install kaffeine into a staging root
