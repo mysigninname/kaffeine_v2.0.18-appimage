@@ -14,7 +14,7 @@ jobs:
       image: ghcr.io/pkgforge-dev/archlinux:latest
 
     steps:
-      - name: Install build tools + appimage prerequisites
+      - name: Install build prerequisites + runtime tools (incl. xvfb)
         run: |
           /bin/sh -euxc '
             pacman-key --init || true
@@ -38,7 +38,7 @@ jobs:
               libxss \
               patchelf \
               fuse2fs squashfs-tools wget curl tar gzip bzip2 unzip xz \
-              xorg-xvfb
+              xorg-server-xvfb xauth
           '
 
       - name: Install CMake (3.25.3)
@@ -63,7 +63,7 @@ jobs:
             /usr/local/bin/cmake --version
           '
 
-      - name: Checkout kaffeine v2.0.18 (tag)
+      - name: Checkout kaffeine v2.0.18 (exact tag)
         run: |
           /bin/sh -euxc '
             rm -rf /src/kaffeine
@@ -72,6 +72,7 @@ jobs:
             cd /src/kaffeine
             git fetch --tags --force
             git checkout -f v2.0.18
+            git rev-parse --short HEAD
             git describe --tags --always
           '
 
@@ -89,7 +90,8 @@ jobs:
             ninja -C build
             DESTDIR=/tmp/kaffeine-root ninja -C build install
 
-            test -x /tmp/kaffeine-root/usr/bin/kaffeine || (ls -la /tmp/kaffeine-root/usr/bin && exit 1)
+            test -x /tmp/kaffeine-root/usr/bin/kaffeine
+            test -f /tmp/kaffeine-root/usr/share/applications/kaffeine.desktop || true
           '
 
       - name: Build AppImage using quick-sharun
@@ -107,16 +109,17 @@ jobs:
             chmod +x ./quick-sharun
 
             APP_BIN="./usr/bin/kaffeine"
-            test -x "$APP_BIN" || { echo "Missing $APP_BIN"; exit 1; }
+            test -x "$APP_BIN"
 
             DESKTOP_FILE="$(find ./usr/share/applications -maxdepth 1 -type f -iname "*kaffeine*.desktop" | head -n 1 || true)"
-            test -n "$DESKTOP_FILE" || { echo "No top level .desktop file found in ./usr/share/applications"; ls -ლა ./usr/share/applications || true; exit 1; }
+            test -n "$DESKTOP_FILE" || { echo "No top level .desktop file found in ./usr/share/applications"; find ./usr/share/applications -maxdepth 1 -type f || true; exit 1; }
 
-            ICON_FILE="$(find ./usr/share/icons -type f -path "*/*apps/*kaffeine*" | head -n 1 || true)"
+            ICON_FILE="$(find ./usr/share/icons -type f -iname "*kaffeine*.png" | head -n 1 || true)"
 
             OUTPATH="/tmp/appimage-work/dist"
             mkdir -p "$OUTPATH"
 
+            ARCH="$(uname -m)"
             ./quick-sharun "$APP_BIN" \
               --make-appimage \
               --outpath "$OUTPATH" \
@@ -124,7 +127,7 @@ jobs:
               --desktop-file "$DESKTOP_FILE" \
               ${ICON_FILE:+--icon "$ICON_FILE"}
 
-            ls -la /tmp/appimage-work/dist
+            ls -la "$OUTPATH"
           '
 
       - name: Upload artifact
