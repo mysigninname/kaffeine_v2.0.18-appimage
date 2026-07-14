@@ -14,7 +14,7 @@ jobs:
       image: ghcr.io/pkgforge-dev/archlinux:latest
 
     steps:
-      - name: Install build tools + runtime packagers
+      - name: Install build prerequisites
         run: |
           /bin/sh -euxc '
             pacman-key --init || true
@@ -62,14 +62,7 @@ jobs:
             /usr/local/bin/cmake --version
           '
 
-      - name: Checkout kaffeine-AppImage helper repo
-        uses: actions/checkout@v5
-        with:
-          repository: pkgforge-dev/kaffeine-AppImage
-          ref: main
-          path: appimage-helper
-
-      - name: Checkout kaffeine v2.0.18 (tag)
+      - name: Checkout kaffeine v2.0.18 (exact tag)
         run: |
           /bin/sh -euxc '
             rm -rf /src/kaffeine
@@ -77,14 +70,18 @@ jobs:
             git clone --no-tags https://invent.kde.org/multimedia/kaffeine.git /src/kaffeine
             cd /src/kaffeine
             git fetch --tags --force
-            git checkout -B v2.0.18 v2.0.18 || git checkout -B v2.0.18 2.0.18
+            git checkout -f v2.0.18
+
+            git rev-parse --short HEAD
+            git describe --tags --always
           '
 
-      - name: Build and install kaffeine into a staging root
+      - name: Build from source and install into staging
         run: |
           /bin/sh -euxc '
             cd /src/kaffeine
 
+            rm -rf build /tmp/kaffeine-root
             /usr/local/bin/cmake -S . -B build -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DBUILD_TESTING=OFF \
@@ -92,43 +89,61 @@ jobs:
 
             ninja -C build
             DESTDIR=/tmp/kaffeine-root ninja -C build install
+
+            test -x /tmp/kaffeine-root/usr/bin/kaffeine
+            # ensure desktop/icon exist (installed by CMake)
+            test -f /tmp/kaffeine-root/usr/share/applications/kaffeine.desktop || true
           '
 
-      - name: Build AppImage with sharun (fix missing quick-sharun + patchelf)
+      - name: Build AppImage using quick-sharun (no pkgforge-dev helper)
         run: |
           /bin/sh -euxc '
-            cd appimage-helper
+            cd /tmp
+            rm -rf appimage-work
+            mkdir -p appimage-work
+            cp -a /tmp/kaffeine-root/* appimage-work/ || true
 
-            rm -rf /tmp/appdir /tmp/AppDir /tmp/usr || true
-            mkdir -p /tmp/usr
+            cd appimage-work
 
-            cp -a /tmp/kaffeine-root/usr /usr || true
-
-            # quick-sharun
             SHARUN_URL="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh"
             curl -fsSL "$SHARUN_URL" -o ./quick-sharun
             chmod +x ./quick-sharun
-            ln -sf "$PWD/quick-sharun" /usr/local/bin/quick-sharun
 
-            # If helper tries to call get-debloated-pkgs, neutralize it
-            if [ -f ./get-dependencies.sh ]; then
-              sed -i -e "s/^[[:space:]]*get-debloated-pkgs[[:space:]].*/echo \"Skipping debloated packages (get-debloated-pkgs not available)\"/g" ./get-dependencies.sh
+            export APP_BIN="/usr/bin/kaffeine"
+
+            export ICON="/usr/share/icons/hicolor/256x256/apps/kaffeine.png"
+            if [ ! -f "$ICON" ]; then
+              ICON="$(ls /usr/share/icons/hicolor/*/apps/kaffeine.* 2>/dev/null | head -n 1 || true)"
             fi
 
-            /bin/sh ./get-dependencies.sh
+            export DESKTOP="/usr/share/applications/kaffeine.desktop"
+            if [ ! -f "$DESKTOP" ]; then
+              DESKTOP="$(ls /usr/share/applications/*kaffeine*.desktop 2>/dev/null | head -n 1 || true)"
+            fi
 
-            # Assert patchelf exists for make-appimage.sh
-            command -v patchelf
-            patchelf --version
+            export OUTPATH="/tmp/appimage-work/dist"
+            mkdir -p "$OUTPATH"
 
-            /bin/sh ./make-appimage.sh
+            ARCH="$(uname -m)"
+            export OUTNAME="Kaffeine-2.0.18-${ARCH}.AppImage"
+
+            # Bundle + create the AppImage
+            ./quick-sharun "$APP_BIN" \
+              --make-appimage \
+              --outpath "$OUTPATH" \
+              --outname "$OUTNAME" \
+              ${ICON:+--icon "$ICON"} \
+              ${DESKTOP:+--desktop-file "$DESKTOP"}
+
+            ls -la /tmp/appimage-work/dist
           '
 
       - name: Upload artifact
         uses: actions/upload-artifact@v5
         with:
           name: AppImage-x86_64-kaffeine-2.0.18
-          path: appimage-helper/dist
+          path: /tmp/appimage-work/dist
+          if-no-files-found: error
 
   release:
     if: ${{ github.ref_name == 'main' }}
