@@ -37,8 +37,9 @@ jobs:
               solid \
               libxss \
               patchelf \
-              fuse2fs squashfs-tools wget curl tar gzip bzip2 unzip xz \
-              xorg-server-xvfb xauth
+              fuse2fs squashfs-tools \
+              wget curl tar gzip bzip2 unzip xz \
+              xorg-server-xvfb
           '
 
       - name: Install CMake (3.25.3)
@@ -119,7 +120,6 @@ jobs:
             OUTPATH="/tmp/appimage-work/dist"
             mkdir -p "$OUTPATH"
 
-            ARCH="$(uname -m)"
             ./quick-sharun "$APP_BIN" \
               --make-appimage \
               --outpath "$OUTPATH" \
