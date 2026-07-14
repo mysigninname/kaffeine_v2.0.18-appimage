@@ -114,7 +114,6 @@ jobs:
 
             DESKTOP_FILE="$(find ./usr/share/applications -maxdepth 1 -type f -iname "*kaffeine*.desktop" | head -n 1)"
             test -n "$DESKTOP_FILE"
-
             cp -f "$DESKTOP_FILE" "$DESKTOP_FILE.bak"
 
             sed -i -e "s|^Exec=.*\/kaffeine.*|Exec=kaffeine %U|g" "$DESKTOP_FILE"
@@ -125,9 +124,6 @@ jobs:
               ICON_FILE="$(find ./usr/share/icons -type f -iname "*kaffeine*.svg" -print -quit || true)"
             fi
 
-            OUTPATH="/tmp/appimage-work/dist"
-            mkdir -p "$OUTPATH"
-
             export DESKTOP="$DESKTOP_FILE"
             if [ -n "$ICON_FILE" ]; then
               export ICON="$ICON_FILE"
@@ -135,11 +131,15 @@ jobs:
               export ICON="DUMMY"
             fi
 
-            ./quick-sharun "$APP_BIN" \
-              --make-appimage \
-              --outpath "$OUTPATH" \
-              --outname "Kaffeine-2.0.18-x86_64.AppImage" \
-              --desktop-file "$DESKTOP_FILE"
+            export OUTPATH="/tmp/appimage-work/dist"
+            export OUTNAME="Kaffeine-2.0.18-x86_64.AppImage"
+            mkdir -p "$OUTPATH"
+
+            # Deploy into AppDir first
+            ./quick-sharun "$APP_BIN"
+
+            # Then build the AppImage (ensures output name/path matches what script expects)
+            ./quick-sharun --make-appimage
 
             ls -la "$OUTPATH"
           '
