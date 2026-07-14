@@ -117,12 +117,13 @@ jobs:
 
             cp -f "$DESKTOP_FILE" "$DESKTOP_FILE.bak"
 
-            # Make desktop Exec relocatable inside AppDir (avoid /usr/bin hardcoding)
-            # Use simple POSIX-compatible sed (no unescaped parentheses).
             sed -i -e "s|^Exec=.*\/kaffeine.*|Exec=kaffeine %U|g" "$DESKTOP_FILE"
             sed -i -e "s|^Exec=kaffeine %U %U$|Exec=kaffeine %U|g" "$DESKTOP_FILE"
 
-            ICON_FILE="$(find ./usr/share/icons -type f \\( -iname "*kaffeine*.png" -o -iname "*kaffeine*.svg" \\) | head -n 1 || true)"
+            ICON_FILE="$(find ./usr/share/icons -type f -iname "*kaffeine*.png" -print -quit || true)"
+            if [ -z "$ICON_FILE" ]; then
+              ICON_FILE="$(find ./usr/share/icons -type f -iname "*kaffeine*.svg" -print -quit || true)"
+            fi
 
             OUTPATH="/tmp/appimage-work/dist"
             mkdir -p "$OUTPATH"
