@@ -92,7 +92,7 @@ jobs:
             DESTDIR=/tmp/kaffeine-root ninja -C build install
 
             test -x /tmp/kaffeine-root/usr/bin/kaffeine
-            test -f /tmp/kaffeine-root/usr/share/applications/kaffeine.desktop || true
+            test -f /tmp/kaffeine-root/usr/share/applications/*.desktop
           '
 
       - name: Build AppImage using quick-sharun
@@ -113,19 +113,35 @@ jobs:
             test -x "$APP_BIN"
 
             DESKTOP_FILE="$(find ./usr/share/applications -maxdepth 1 -type f -iname "*kaffeine*.desktop" | head -n 1 || true)"
-            test -n "$DESKTOP_FILE" || { echo "No top level .desktop file found in ./usr/share/applications"; find ./usr/share/applications -maxdepth 1 -type f || true; exit 1; }
+            test -n "$DESKTOP_FILE"
 
-            ICON_FILE="$(find ./usr/share/icons -type f -iname "*kaffeine*.png" | head -n 1 || true)"
+            # Patch desktop Exec to be relocatable inside AppDir
+            # Kaffeine binary is deployed by sharun, so Exec must not hardcode /usr/bin.
+            cp -f "$DESKTOP_FILE" "$DESKTOP_FILE.bak"
+            # Replace any Exec line that points to /usr/bin/kaffeine (with or without args) with a plain kaffeine invocation.
+            sed -i -E \
+              "s|^Exec=.*\/kaffeine([^/]*?)?$|Exec=kaffeine %U|g; s|^Exec=kaffeine[[:space:]]*%U[[:space:]]*$|Exec=kaffeine %U|g" \
+              "$DESKTOP_FILE"
+
+            # Pick a usable icon (png or svg)
+            ICON_FILE="$( (find ./usr/share/icons -type f \\( -iname "*kaffeine*.png" -o -iname "*kaffeine*.svg" \\) | head -n 1) || true )"
 
             OUTPATH="/tmp/appimage-work/dist"
             mkdir -p "$OUTPATH"
+
+            export DESKTOP="$DESKTOP_FILE"
+            if [ -n "$ICON_FILE" ]; then
+              export ICON="$ICON_FILE"
+            else
+              # Let quick-sharun use Icon= from the desktop, by setting ICON=DUMMY.
+              export ICON="DUMMY"
+            fi
 
             ./quick-sharun "$APP_BIN" \
               --make-appimage \
               --outpath "$OUTPATH" \
               --outname "Kaffeine-2.0.18-x86_64.AppImage" \
-              --desktop-file "$DESKTOP_FILE" \
-              ${ICON_FILE:+--icon "$ICON_FILE"}
+              --desktop-file "$DESKTOP_FILE"
 
             ls -la "$OUTPATH"
           '
