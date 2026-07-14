@@ -14,7 +14,7 @@ jobs:
       image: ghcr.io/pkgforge-dev/archlinux:latest
 
     steps:
-      - name: Install build prerequisites
+      - name: Install build tools + appimage prerequisites
         run: |
           /bin/sh -euxc '
             pacman-key --init || true
@@ -37,7 +37,8 @@ jobs:
               solid \
               libxss \
               patchelf \
-              fuse2fs squashfs-tools wget curl tar gzip bzip2 unzip xz
+              fuse2fs squashfs-tools wget curl tar gzip bzip2 unzip xz \
+              xorg-xvfb
           '
 
       - name: Install CMake (3.25.3)
@@ -62,7 +63,7 @@ jobs:
             /usr/local/bin/cmake --version
           '
 
-      - name: Checkout kaffeine v2.0.18 (exact tag)
+      - name: Checkout kaffeine v2.0.18 (tag)
         run: |
           /bin/sh -euxc '
             rm -rf /src/kaffeine
@@ -71,12 +72,10 @@ jobs:
             cd /src/kaffeine
             git fetch --tags --force
             git checkout -f v2.0.18
-
-            git rev-parse --short HEAD
             git describe --tags --always
           '
 
-      - name: Build from source and install into staging
+      - name: Build from source and stage
         run: |
           /bin/sh -euxc '
             cd /src/kaffeine
@@ -90,50 +89,40 @@ jobs:
             ninja -C build
             DESTDIR=/tmp/kaffeine-root ninja -C build install
 
-            test -x /tmp/kaffeine-root/usr/bin/kaffeine
-            # ensure desktop/icon exist (installed by CMake)
-            test -f /tmp/kaffeine-root/usr/share/applications/kaffeine.desktop || true
+            test -x /tmp/kaffeine-root/usr/bin/kaffeine || (ls -la /tmp/kaffeine-root/usr/bin && exit 1)
           '
 
-      - name: Build AppImage using quick-sharun (no pkgforge-dev helper)
+      - name: Build AppImage using quick-sharun
         run: |
           /bin/sh -euxc '
             cd /tmp
             rm -rf appimage-work
             mkdir -p appimage-work
-            cp -a /tmp/kaffeine-root/* appimage-work/ || true
+
+            cp -a /tmp/kaffeine-root/usr appimage-work/
 
             cd appimage-work
 
-            SHARUN_URL="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh"
-            curl -fsSL "$SHARUN_URL" -o ./quick-sharun
+            curl -fsSL "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh" -o ./quick-sharun
             chmod +x ./quick-sharun
 
-            export APP_BIN="/usr/bin/kaffeine"
+            APP_BIN="./usr/bin/kaffeine"
+            test -x "$APP_BIN" || { echo "Missing $APP_BIN"; exit 1; }
 
-            export ICON="/usr/share/icons/hicolor/256x256/apps/kaffeine.png"
-            if [ ! -f "$ICON" ]; then
-              ICON="$(ls /usr/share/icons/hicolor/*/apps/kaffeine.* 2>/dev/null | head -n 1 || true)"
-            fi
+            DESKTOP_FILE="$(find ./usr/share/applications -maxdepth 1 -type f -iname "*kaffeine*.desktop" | head -n 1 || true)"
+            test -n "$DESKTOP_FILE" || { echo "No top level .desktop file found in ./usr/share/applications"; ls -ლა ./usr/share/applications || true; exit 1; }
 
-            export DESKTOP="/usr/share/applications/kaffeine.desktop"
-            if [ ! -f "$DESKTOP" ]; then
-              DESKTOP="$(ls /usr/share/applications/*kaffeine*.desktop 2>/dev/null | head -n 1 || true)"
-            fi
+            ICON_FILE="$(find ./usr/share/icons -type f -path "*/*apps/*kaffeine*" | head -n 1 || true)"
 
-            export OUTPATH="/tmp/appimage-work/dist"
+            OUTPATH="/tmp/appimage-work/dist"
             mkdir -p "$OUTPATH"
 
-            ARCH="$(uname -m)"
-            export OUTNAME="Kaffeine-2.0.18-${ARCH}.AppImage"
-
-            # Bundle + create the AppImage
             ./quick-sharun "$APP_BIN" \
               --make-appimage \
               --outpath "$OUTPATH" \
-              --outname "$OUTNAME" \
-              ${ICON:+--icon "$ICON"} \
-              ${DESKTOP:+--desktop-file "$DESKTOP"}
+              --outname "Kaffeine-2.0.18-x86_64.AppImage" \
+              --desktop-file "$DESKTOP_FILE" \
+              ${ICON_FILE:+--icon "$ICON_FILE"}
 
             ls -la /tmp/appimage-work/dist
           '
@@ -151,7 +140,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Download artifact
         uses: actions/download-artifact@v6
