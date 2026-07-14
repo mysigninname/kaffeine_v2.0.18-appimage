@@ -112,19 +112,17 @@ jobs:
             APP_BIN="./usr/bin/kaffeine"
             test -x "$APP_BIN"
 
-            DESKTOP_FILE="$(find ./usr/share/applications -maxdepth 1 -type f -iname "*kaffeine*.desktop" | head -n 1 || true)"
+            DESKTOP_FILE="$(find ./usr/share/applications -maxdepth 1 -type f -iname "*kaffeine*.desktop" | head -n 1)"
             test -n "$DESKTOP_FILE"
 
-            # Patch desktop Exec to be relocatable inside AppDir
-            # Kaffeine binary is deployed by sharun, so Exec must not hardcode /usr/bin.
             cp -f "$DESKTOP_FILE" "$DESKTOP_FILE.bak"
-            # Replace any Exec line that points to /usr/bin/kaffeine (with or without args) with a plain kaffeine invocation.
-            sed -i -E \
-              "s|^Exec=.*\/kaffeine([^/]*?)?$|Exec=kaffeine %U|g; s|^Exec=kaffeine[[:space:]]*%U[[:space:]]*$|Exec=kaffeine %U|g" \
-              "$DESKTOP_FILE"
 
-            # Pick a usable icon (png or svg)
-            ICON_FILE="$( (find ./usr/share/icons -type f \\( -iname "*kaffeine*.png" -o -iname "*kaffeine*.svg" \\) | head -n 1) || true )"
+            # Make desktop Exec relocatable inside AppDir (avoid /usr/bin hardcoding)
+            # Use simple POSIX-compatible sed (no unescaped parentheses).
+            sed -i -e "s|^Exec=.*\/kaffeine.*|Exec=kaffeine %U|g" "$DESKTOP_FILE"
+            sed -i -e "s|^Exec=kaffeine %U %U$|Exec=kaffeine %U|g" "$DESKTOP_FILE"
+
+            ICON_FILE="$(find ./usr/share/icons -type f \\( -iname "*kaffeine*.png" -o -iname "*kaffeine*.svg" \\) | head -n 1 || true)"
 
             OUTPATH="/tmp/appimage-work/dist"
             mkdir -p "$OUTPATH"
@@ -133,7 +131,6 @@ jobs:
             if [ -n "$ICON_FILE" ]; then
               export ICON="$ICON_FILE"
             else
-              # Let quick-sharun use Icon= from the desktop, by setting ICON=DUMMY.
               export ICON="DUMMY"
             fi
 
