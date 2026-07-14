@@ -14,7 +14,7 @@ jobs:
       image: ghcr.io/pkgforge-dev/archlinux:latest
 
     steps:
-      - name: Install build tools
+      - name: Install build tools + runtime packagers
         run: |
           /bin/sh -euxc '
             pacman-key --init || true
@@ -35,7 +35,9 @@ jobs:
               breeze-icons oxygen-icons \
               attica baloo bluez-qt \
               solid \
-              libxss
+              libxss \
+              patchelf \
+              fuse2fs squashfs-tools wget curl tar gzip bzip2 unzip xz
           '
 
       - name: Install CMake (3.25.3)
@@ -92,7 +94,7 @@ jobs:
             DESTDIR=/tmp/kaffeine-root ninja -C build install
           '
 
-      - name: Build AppImage with sharun (fix missing quick-sharun)
+      - name: Build AppImage with sharun (fix missing quick-sharun + patchelf)
         run: |
           /bin/sh -euxc '
             cd appimage-helper
@@ -102,18 +104,23 @@ jobs:
 
             cp -a /tmp/kaffeine-root/usr /usr || true
 
+            # quick-sharun
             SHARUN_URL="https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh"
             curl -fsSL "$SHARUN_URL" -o ./quick-sharun
             chmod +x ./quick-sharun
-
-            # ensure helpers find it even if they expect it on PATH
             ln -sf "$PWD/quick-sharun" /usr/local/bin/quick-sharun
 
+            # If helper tries to call get-debloated-pkgs, neutralize it
             if [ -f ./get-dependencies.sh ]; then
               sed -i -e "s/^[[:space:]]*get-debloated-pkgs[[:space:]].*/echo \"Skipping debloated packages (get-debloated-pkgs not available)\"/g" ./get-dependencies.sh
             fi
 
             /bin/sh ./get-dependencies.sh
+
+            # Assert patchelf exists for make-appimage.sh
+            command -v patchelf
+            patchelf --version
+
             /bin/sh ./make-appimage.sh
           '
 
