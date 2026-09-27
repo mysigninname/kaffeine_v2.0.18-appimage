@@ -41,6 +41,24 @@ jobs:
               wget curl tar gzip bzip2 unzip xz \
               xorg-server-xvfb
           '
+      - name: Diagnose VLC and Phonon packages
+        run: |
+          /bin/sh -euxc '
+            echo "Installed VLC-related packages:"
+            pacman -Q | grep -Ei "vlc|phonon|ffmpeg" || true
+
+            echo
+            echo "Available VLC and Phonon packages:"
+            pacman -Ss "phonon.*vlc|vlc.*plugin|libvlc" || true
+
+            echo
+            echo "Installed VLC files:"
+            pacman -Ql vlc 2>/dev/null || true
+
+            echo
+            echo "Installed Phonon files:"
+            pacman -Ql phonon-qt5-vlc 2>/dev/null || true
+          '
 
       - name: Install CMake (3.25.3)
         run: |
