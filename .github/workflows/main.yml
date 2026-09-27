@@ -1,34 +1,235 @@
 name: Kaffeine AppImage (sharun) - kaffeine 2.0.18
 
 on:
-  workflow\_dispatch: {}
+  workflow_dispatch:
 
-      
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-x86_64:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/pkgforge-dev/archlinux:latest
+
+    steps:
+      - name: Install build prerequisites and runtime tools
+        run: |
+          /bin/sh -euxc '
+            pacman-key --init || true
+            pacman-key --populate archlinux || true
+
+            pacman -Syu --noconfirm --needed
+
+            pacman -S --noconfirm --needed \
+              git \
+              ninja \
+              base-devel \
+              gcc \
+              qt5-base \
+              qt5-multimedia \
+              qt5-svg \
+              extra-cmake-modules \
+              python3 \
+              vlc \
+              vlc-plugin-ffmpeg \
+              pipewire-pulse \
+              pipewire-jack \
+              plasma-desktop \
+              kcoreaddons5 \
+              ki18n5 \
+              kconfigwidgets5 \
+              kdbusaddons5 \
+              kio5 \
+              kxmlgui5 \
+              kwindowsystem \
+              kcmutils \
+              kiconthemes \
+              kwallet \
+              kio-extras \
+              sonnet \
+              threadweaver \
+              breeze-icons \
+              oxygen-icons \
+              attica \
+              baloo \
+              bluez-qt \
+              solid \
+              libxss \
+              patchelf \
+              fuse2fs \
+              squashfs-tools \
+              wget \
+              curl \
+              tar \
+              gzip \
+              bzip2 \
+              unzip \
+              xz \
+              xorg-server-xvfb
+          '
+
+      - name: Diagnose VLC and Phonon packages
+        run: |
+          /bin/sh -euxc '
+            echo "Installed VLC-related packages:"
+            pacman -Q | grep -Ei "vlc|phonon|ffmpeg" || true
+
+            echo
+            echo "Available VLC and Phonon packages:"
+            pacman -Ss "phonon.*vlc|vlc.*plugin|libvlc" || true
+
+            echo
+            echo "Installed VLC files:"
+            pacman -Ql vlc 2>/dev/null || true
+
+            echo
+            echo "Installed Phonon files:"
+            pacman -Ql phonon-qt5-vlc 2>/dev/null || true
+          '
+
+      - name: Inspect installed VLC files
+        run: |
+          /bin/sh -euxc '
+            echo "VLC packages:"
+            pacman -Q | grep -Ei "^(libvlc|vlc|vlc-plugin|ffmpeg)" || true
+
+            echo
+            echo "VLC package files:"
+            pacman -Ql libvlc vlc vlc-plugins-base vlc-plugins-video-output 2>/dev/null || true
+
+            echo
+            echo "VLC plugin directories:"
+            find /usr/lib /usr/lib64 /usr/share -type d \
+              \( -iname "*vlc*" -o -iname "plugins" \) \
+              -print 2>/dev/null || true
+
+            echo
+            echo "VLC shared libraries:"
+            find /usr/lib /usr/lib64 -type f \
+              \( -name "libvlc.so*" -o -name "libvlccore.so*" \) \
+              -print 2>/dev/null || true
+          '
+
+      - name: Locate Qt platform plugins
+        run: |
+          /bin/sh -euxc '
+            echo "Qt platform plugins:"
+            find /usr -type f \
+              \( -name "libqxcb.so" -o -name "libqwayland*.so" \) \
+              -print 2>/dev/null || true
+          '
+
+      - name: Install CMake 3.25.3
+        run: |
+          /bin/sh -euxc '
+            cd /tmp
+
+            CMAKE_VER=3.25.3
+            CMAKE_TGZ="cmake-${CMAKE_VER}-linux-x86_64.tar.gz"
+
+            curl -fsSLO \
+              "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VER}/${CMAKE_TGZ}"
+
+            tar -xzf "${CMAKE_TGZ}"
+
+            rm -rf /opt/cmake
+            mv "cmake-${CMAKE_VER}-linux-x86_64" /opt/cmake
+
+            mkdir -p /usr/local/bin
+
+            ln -sf /opt/cmake/bin/cmake /usr/local/bin/cmake
+            ln -sf /opt/cmake/bin/ctest /usr/local/bin/ctest
+            ln -sf /opt/cmake/bin/cpack /usr/local/bin/cpack
+            ln -sf /opt/cmake/bin/ccmake /usr/local/bin/ccmake
+
+            /usr/local/bin/cmake --version
+          '
+
+      - name: Checkout Kaffeine v2.0.18
+        run: |
+          /bin/sh -euxc '
+            rm -rf /src/kaffeine
+            mkdir -p /src
+
+            git clone \
+              --no-tags \
+              https://invent.kde.org/multimedia/kaffeine.git \
+              /src/kaffeine
+
+            cd /src/kaffeine
+
+            git fetch --tags --force
+            git checkout -f v2.0.18
+
+            git rev-parse --short HEAD
+            git describe --tags --always
+          '
+
+      - name: Build from source and stage
+        run: |
+          /bin/sh -euxc '
+            cd /src/kaffeine
+
+            rm -rf build /tmp/kaffeine-root
+
+            /usr/local/bin/cmake \
+              -S . \
+              -B build \
+              -G Ninja \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DBUILD_TESTING=OFF \
+              -DCMAKE_INSTALL_PREFIX=/usr
+
+            ninja -C build
+
+            DESTDIR=/tmp/kaffeine-root \
+              ninja -C build install
+
+            test -x /tmp/kaffeine-root/usr/bin/kaffeine
+
+            find /tmp/kaffeine-root/usr/share/applications \
+              -maxdepth 1 \
+              -type f \
+              -name "*.desktop" \
+              -print \
+              -quit
+          '
+
       - name: Build AppImage using quick-sharun
         run: |
           /bin/sh -euxc '
             cd /tmp
+
             rm -rf appimage-work
             mkdir -p appimage-work
 
             cp -a /tmp/kaffeine-root/usr appimage-work/
 
-            cd appimage-work
+            cd /tmp/appimage-work
 
-            curl -fsSL "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh" \
-              -o ./quick-sharun
-            chmod +x ./quick-sharun
+            curl -fsSL \
+              "https://raw.githubusercontent.com/pkgforge-dev/Anylinux-AppImages/refs/heads/main/useful-tools/quick-sharun.sh" \
+              -o quick-sharun
+
+            chmod +x quick-sharun
 
             APP_BIN="./usr/bin/kaffeine"
             test -x "$APP_BIN"
 
-            DESKTOP_FILE="$(find ./usr/share/applications \
-              -maxdepth 1 \
-              -type f \
-              -iname "*kaffeine*.desktop" \
-              -print -quit)"
+            DESKTOP_FILE="$(
+              find ./usr/share/applications \
+                -maxdepth 1 \
+                -type f \
+                -iname "*kaffeine*.desktop" \
+                -print \
+                -quit
+            )"
 
             test -n "$DESKTOP_FILE"
+
             cp -f "$DESKTOP_FILE" "$DESKTOP_FILE.bak"
 
             sed -i \
@@ -36,16 +237,22 @@ on:
               -e "s|^Exec=kaffeine %U %U$|Exec=kaffeine %U|g" \
               "$DESKTOP_FILE"
 
-            ICON_FILE="$(find ./usr/share/icons \
-              -type f \
-              -iname "*kaffeine*.png" \
-              -print -quit || true)"
+            ICON_FILE="$(
+              find ./usr/share/icons \
+                -type f \
+                -iname "*kaffeine*.png" \
+                -print \
+                -quit || true
+            )"
 
             if [ -z "$ICON_FILE" ]; then
-              ICON_FILE="$(find ./usr/share/icons \
-                -type f \
-                -iname "*kaffeine*.svg" \
-                -print -quit || true)"
+              ICON_FILE="$(
+                find ./usr/share/icons \
+                  -type f \
+                  -iname "*kaffeine*.svg" \
+                  -print \
+                  -quit || true
+              )"
             fi
 
             export DESKTOP="$DESKTOP_FILE"
@@ -58,12 +265,14 @@ on:
 
             export OUTPATH="/tmp/appimage-work/dist"
             export OUTNAME="Kaffeine-2.0.18-x86_64.AppImage"
+
             mkdir -p "$OUTPATH"
 
             echo "Deploying application into AppDir:"
             ./quick-sharun "$APP_BIN"
 
-            echo "Platform and SQLite plugins in AppDir:"
+            echo
+            echo "Files in AppDir after deployment:"
             find AppDir -type f \
               \( \
                 -name "libqxcb.so" -o \
@@ -72,23 +281,30 @@ on:
               \) \
               -print || true
 
+            echo
             echo "Building AppImage:"
             ./quick-sharun --make-appimage
 
-            echo "Testing the generated AppImage:"
-            ./quick-sharun --simple-test "$OUTPATH/$OUTNAME"
-
-            echo "Files in final AppImage:"
             FINAL_APPIMAGE="$OUTPATH/$OUTNAME"
             test -f "$FINAL_APPIMAGE"
 
+            echo
+            echo "Testing the generated AppImage:"
+            ./quick-sharun --simple-test "$FINAL_APPIMAGE"
+
+            echo
+            echo "Extracting final AppImage for inspection:"
+
             rm -rf /tmp/final-appimage-check
             mkdir -p /tmp/final-appimage-check
+
             cd /tmp/final-appimage-check
 
             "$FINAL_APPIMAGE" --appimage-extract \
-              >/tmp/final-appimage-extract.log 2>&1
+              > /tmp/final-appimage-extract.log 2>&1
 
+            echo
+            echo "Qt plugin files in extracted AppImage:"
             find squashfs-root -type f \
               \( \
                 -name "libqxcb.so" -o \
@@ -97,9 +313,56 @@ on:
               \) \
               -print || true
 
+            echo
+            echo "VLC files in extracted AppImage:"
+            find squashfs-root -type f \
+              \( \
+                -name "libvlc.so*" -o \
+                -name "libvlccore.so*" \
+              \) \
+              -print || true
+
+            echo
+            echo "VLC plugin directories in extracted AppImage:"
+            find squashfs-root -type d \
+              \( \
+                -path "*/vlc/plugins" -o \
+                -path "*/vlc/plugins/*" \
+              \) \
+              -print || true
+
+            echo
             echo "AppImage extraction log:"
             cat /tmp/final-appimage-extract.log || true
 
-            echo "Generated files:"
+            echo
+            echo "Generated AppImage:"
             ls -la "$OUTPATH"
           '
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: AppImage-x86_64-kaffeine-2.0.18
+          path: /tmp/appimage-work/dist
+          if-no-files-found: error
+
+  release:
+    if: ${{ github.ref_name == 'main' }}
+    needs:
+      - build-x86_64
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v6
+        with:
+          pattern: AppImage-*
+          merge-multiple: true
+
+      - name: Create stable release
+        uses: pkgforge-dev/make-stable-appimage-release@v1
