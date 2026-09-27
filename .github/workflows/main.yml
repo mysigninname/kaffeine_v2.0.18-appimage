@@ -59,6 +59,28 @@ jobs:
             echo "Installed Phonon files:"
             pacman -Ql phonon-qt5-vlc 2>/dev/null || true
           '
+      - name: Inspect installed VLC files
+        run: |
+          /bin/sh -euxc '
+            echo "VLC packages:"
+            pacman -Q | grep -Ei "^(libvlc|vlc|vlc-plugin|ffmpeg)" || true
+
+            echo
+            echo "VLC package files:"
+            pacman -Ql libvlc vlc vlc-plugins-base vlc-plugins-video-output 2>/dev/null || true
+
+            echo
+            echo "VLC plugin directories:"
+            find /usr/lib /usr/lib64 /usr/share -type d \
+              \( -iname "*vlc*" -o -iname "plugins" \) \
+              -print 2>/dev/null || true
+
+            echo
+            echo "VLC shared libraries:"
+            find /usr/lib /usr/lib64 -type f \
+              \( -name "libvlc.so*" -o -name "libvlccore.so*" \) \
+              -print 2>/dev/null || true
+          '
 
       - name: Install CMake (3.25.3)
         run: |
