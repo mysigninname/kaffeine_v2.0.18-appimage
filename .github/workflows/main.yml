@@ -1,3 +1,9 @@
+name: Kaffeine AppImage (sharun) - kaffeine 2.0.18
+
+on:
+  workflow\_dispatch: {}
+
+      
       - name: Build AppImage using quick-sharun
         run: |
           /bin/sh -euxc '
