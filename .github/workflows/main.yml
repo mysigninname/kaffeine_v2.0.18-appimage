@@ -188,6 +188,11 @@ jobs:
             # Deploy into AppDir first
             ./quick-sharun "$APP_BIN"
 
+            echo "Platform plugins after quick-sharun:"
+            find . -type f \
+              \( -name "libqxcb.so" -o -name "libqwayland*.so" \) \
+              -print || true
+
             # Then build the AppImage (ensures output name/path matches what script expects)
             ./quick-sharun --make-appimage
 
