@@ -82,6 +82,15 @@ jobs:
               \( -name "libvlc.so*" -o -name "libvlccore.so*" \) \
               -print 2>/dev/null || true
           '
+      - name: Locate Qt platform plugins
+        run: |
+          /bin/sh -euxc '
+            echo "Qt platform plugins:"
+            find /usr -type f \
+              \( -name "libqxcb.so" -o -name "libqwayland*.so" \) \
+              -print 2>/dev/null || true
+          '
+
 
       - name: Install CMake (3.25.3)
         run: |
