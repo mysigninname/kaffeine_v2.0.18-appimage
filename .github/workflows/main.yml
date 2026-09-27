@@ -196,6 +196,27 @@ jobs:
             # Then build the AppImage (ensures output name/path matches what script expects)
             ./quick-sharun --make-appimage
 
+            echo "Files in AppDir:"
+            find AppDir -type f \
+              \( -name "libqxcb.so" -o -name "libqsqlite.so" \) \
+              -print || true
+
+            echo "Files in final AppImage:"
+            FINAL_APPIMAGE="$OUTPATH/$OUTNAME"
+
+            rm -rf /tmp/final-appimage-check
+            mkdir -p /tmp/final-appimage-check
+
+            "$FINAL_APPIMAGE" --appimage-extract \
+              >/tmp/final-appimage-extract.log 2>&1
+
+            find squashfs-root -type f \
+              \( -name "libqxcb.so" -o -name "libqsqlite.so" \) \
+              -print || true
+
+            rm -rf squashfs-root
+
+
             ls -la "$OUTPATH"
           '
 
